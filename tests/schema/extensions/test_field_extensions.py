@@ -458,3 +458,38 @@ async def test_extension_without_resolve_is_transparent_on_async_field():
     result = await schema.execute("query { echo(value: 4) }")
     assert result.errors is None
     assert result.data == {"echo": 8}
+
+
+async def test_field_without_extensions_does_not_build_extension_chain(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # Fields without resolve extensions call the resolver directly instead of
+    # building the extension chain on every call.
+    def fail(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("the extension chain should not be built")
+
+    monkeypatch.setattr("strawberry.schema.schema_converter.reduce", fail)
+
+    @strawberry.input
+    class Filter:
+        min_value: int
+
+    @strawberry.type
+    class Query:
+        @strawberry.field
+        def numbers(self, info: strawberry.Info, filter_by: Filter) -> list[int]:
+            assert info.field_name == "numbers"
+            return [n for n in range(5) if n >= filter_by.min_value]
+
+        @strawberry.field
+        async def echo(self, info: strawberry.Info, value: int) -> int:
+            assert info.field_name == "echo"
+            return value
+
+    schema = strawberry.Schema(query=Query)
+    result = await schema.execute(
+        "query { numbers(filterBy: { minValue: 3 }) echo(value: 7) }"
+    )
+
+    assert result.errors is None
+    assert result.data == {"numbers": [3, 4], "echo": 7}

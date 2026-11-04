@@ -1189,6 +1189,29 @@ class GraphQLCoreConverter:
             # matched; here we only need to build the resolver chain.
             extension_functions = build_field_extension_resolvers(field)
 
+            # Without extensions there is nothing to chain, so skip building
+            # the chain on every call.
+            if not extension_functions:
+
+                def resolver_without_extensions(
+                    _source: Any,
+                    info: Info,
+                    **kwargs: Any,
+                ) -> Any:
+                    field_args, field_kwargs = get_arguments(
+                        field=field,
+                        source=_source,
+                        info=info,
+                        kwargs=kwargs,
+                        config=self.config,
+                        scalar_registry=self.scalar_registry,
+                    )
+                    return _get_result(
+                        _source, info, field_args=field_args, field_kwargs=field_kwargs
+                    )
+
+                return resolver_without_extensions
+
             def extension_resolver(
                 _source: Any,
                 info: Info,
