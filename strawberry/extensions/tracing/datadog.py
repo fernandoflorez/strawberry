@@ -9,7 +9,7 @@ import ddtrace
 from packaging import version
 
 from strawberry.extensions import LifecycleStep, SchemaExtension
-from strawberry.extensions.tracing.utils import should_skip_tracing
+from strawberry.extensions.tracing.utils import should_skip_tracing, traces_field
 
 parsed_ddtrace_version = version.parse(ddtrace.__version__)
 if parsed_ddtrace_version >= version.parse("3.0.0"):
@@ -21,7 +21,7 @@ else:
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
 
-    from graphql import GraphQLResolveInfo
+    from graphql import GraphQLField, GraphQLObjectType, GraphQLResolveInfo
 
     from strawberry.types.execution import ExecutionContext
 
@@ -158,6 +158,11 @@ class DatadogTracingExtension(SchemaExtension):
 
 
 class DatadogTracingExtensionSync(DatadogTracingExtension):
+    def applies_to_field(
+        self, parent_type: GraphQLObjectType, field_def: GraphQLField
+    ) -> bool:
+        return traces_field(field_def)
+
     def resolve(
         self,
         _next: Callable,

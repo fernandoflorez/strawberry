@@ -14,12 +14,12 @@ from opentelemetry.trace import SpanKind
 from strawberry.extensions import LifecycleStep, SchemaExtension
 from strawberry.extensions.utils import get_path_from_info
 
-from .utils import should_skip_tracing
+from .utils import should_skip_tracing, traces_field
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
-    from graphql import GraphQLResolveInfo
+    from graphql import GraphQLField, GraphQLObjectType, GraphQLResolveInfo
     from opentelemetry.trace import Span, Tracer
 
     from strawberry.types.execution import ExecutionContext
@@ -181,6 +181,11 @@ class OpenTelemetryExtension(SchemaExtension):
 
 
 class OpenTelemetryExtensionSync(OpenTelemetryExtension):
+    def applies_to_field(
+        self, parent_type: GraphQLObjectType, field_def: GraphQLField
+    ) -> bool:
+        return traces_field(field_def)
+
     def resolve(
         self,
         _next: Callable,

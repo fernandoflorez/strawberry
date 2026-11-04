@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Any
 from strawberry.extensions import SchemaExtension
 from strawberry.extensions.utils import get_path_from_info
 
-from .utils import should_skip_tracing
+from .utils import should_skip_tracing, traces_field
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-    from graphql import GraphQLResolveInfo
+    from graphql import GraphQLField, GraphQLObjectType, GraphQLResolveInfo
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -187,6 +187,11 @@ class ApolloTracingExtension(SchemaExtension):
 
 
 class ApolloTracingExtensionSync(ApolloTracingExtension):
+    def applies_to_field(
+        self, parent_type: GraphQLObjectType, field_def: GraphQLField
+    ) -> bool:
+        return traces_field(field_def)
+
     def resolve(
         self,
         _next: Callable,

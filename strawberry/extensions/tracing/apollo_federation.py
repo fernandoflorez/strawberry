@@ -71,12 +71,12 @@ from typing import TYPE_CHECKING, Any
 
 from strawberry.extensions import SchemaExtension
 
-from .utils import should_skip_tracing
+from .utils import should_skip_tracing, traces_field
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-    from graphql import GraphQLResolveInfo
+    from graphql import GraphQLField, GraphQLObjectType, GraphQLResolveInfo
     from graphql.pyutils import Path
 
     from strawberry.types.execution import ExecutionContext
@@ -500,6 +500,11 @@ class ApolloFederationTracingExtension(SchemaExtension):
 
 class ApolloFederationTracingExtensionSync(ApolloFederationTracingExtension):
     """Synchronous version of the Apollo Federation tracing extension."""
+
+    def applies_to_field(
+        self, parent_type: GraphQLObjectType, field_def: GraphQLField
+    ) -> bool:
+        return traces_field(field_def)
 
     def resolve(
         self,

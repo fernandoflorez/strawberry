@@ -8,7 +8,7 @@ from strawberry.resolvers import is_default_resolver
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from graphql import GraphQLResolveInfo
+    from graphql import GraphQLField, GraphQLResolveInfo
 
 
 def should_skip_tracing(resolver: Callable[..., Any], info: GraphQLResolveInfo) -> bool:
@@ -22,4 +22,9 @@ def should_skip_tracing(resolver: Callable[..., Any], info: GraphQLResolveInfo) 
     )
 
 
-__all__ = ["should_skip_tracing"]
+def traces_field(field_def: GraphQLField) -> bool:
+    resolver = field_def.resolve
+    return not (resolver is None or is_default_resolver(resolver))
+
+
+__all__ = ["should_skip_tracing", "traces_field"]
