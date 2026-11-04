@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from strawberry.schema.config import StrawberryConfig
+    from strawberry.schema.name_converter import NameConverter
     from strawberry.types.info import Info
     from strawberry.types.scalar import ScalarDefinition, ScalarWrapper
 
@@ -81,6 +82,7 @@ class StrawberryArgument:
         self.deprecation_reason = deprecation_reason
         self.directives = tuple(directives)
         self.metadata = metadata or {}
+        self._graphql_name_cache: tuple[NameConverter, str] | None = None
 
         # TODO: Consider moving this logic to a function
         self.default = UNSET if default is inspect.Parameter.empty else default
@@ -373,6 +375,20 @@ def convert_argument(
     raise UnsupportedTypeError(type_)
 
 
+def _get_graphql_name(
+    argument: StrawberryArgument, name_converter: NameConverter
+) -> str:
+    # The name only depends on the argument and the name converter, so compute
+    # it once instead of on every field execution.
+    cached = argument._graphql_name_cache
+    if cached is not None and cached[0] is name_converter:
+        return cached[1]
+
+    name = name_converter.from_argument(argument)
+    argument._graphql_name_cache = (name_converter, name)
+    return name
+
+
 def convert_arguments(
     value: dict[str, Any],
     arguments: list[StrawberryArgument],
@@ -396,7 +412,7 @@ def convert_arguments(
     for argument in arguments:
         assert argument.python_name
 
-        name = config.name_converter.from_argument(argument)
+        name = _get_graphql_name(argument, config.name_converter)
 
         if name in value:
             current_value = value[name]

@@ -7,6 +7,7 @@ import strawberry
 from strawberry.annotation import StrawberryAnnotation
 from strawberry.exceptions import UnsupportedTypeError
 from strawberry.schema.config import StrawberryConfig
+from strawberry.schema.name_converter import NameConverter
 from strawberry.schema.types.scalar import DEFAULT_SCALAR_REGISTRY
 from strawberry.types.arguments import StrawberryArgument, convert_arguments
 from strawberry.types.base import get_object_definition
@@ -525,3 +526,55 @@ def test_input_types_building_their_own_value_receive_its_location():
         ("branches", 1, "leaves", 1),
         ("branches", 1, "mainLeaf"),
     ]
+
+
+def test_argument_graphql_name_is_computed_once_per_name_converter():
+    class CountingNameConverter(NameConverter):
+        calls = 0
+
+        def from_argument(self, argument: StrawberryArgument) -> str:
+            self.calls += 1
+            return super().from_argument(argument)
+
+    name_converter = CountingNameConverter()
+    config = StrawberryConfig(name_converter=name_converter)
+    arguments = [
+        StrawberryArgument(
+            graphql_name=None,
+            type_annotation=StrawberryAnnotation(str),
+            python_name="image_size",
+        )
+    ]
+
+    for _ in range(2):
+        assert convert_arguments(
+            {"imageSize": "100x100"},
+            arguments,
+            scalar_registry=DEFAULT_SCALAR_REGISTRY,
+            config=config,
+        ) == {"image_size": "100x100"}
+
+    assert name_converter.calls == 1
+
+
+def test_argument_graphql_name_respects_each_name_converter():
+    arguments = [
+        StrawberryArgument(
+            graphql_name=None,
+            type_annotation=StrawberryAnnotation(str),
+            python_name="image_size",
+        )
+    ]
+
+    assert convert_arguments(
+        {"imageSize": "camel"},
+        arguments,
+        scalar_registry=DEFAULT_SCALAR_REGISTRY,
+        config=StrawberryConfig(auto_camel_case=True),
+    ) == {"image_size": "camel"}
+    assert convert_arguments(
+        {"image_size": "snake"},
+        arguments,
+        scalar_registry=DEFAULT_SCALAR_REGISTRY,
+        config=StrawberryConfig(auto_camel_case=False),
+    ) == {"image_size": "snake"}
