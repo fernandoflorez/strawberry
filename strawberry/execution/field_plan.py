@@ -415,10 +415,14 @@ class FieldPlanExecutionContext(StrawberryGraphQLCoreExecutionContext):
         return plan
 
     def _request_plan_cache(self) -> dict[Any, tuple[Any, _FieldPlan | None]]:
-        try:
-            variables = _freeze(self.variable_values.coerced, [_FREEZE_BUDGET])
-        except _Unfreezable:
-            return {}
+        coerced = self.variable_values.coerced
+        if coerced:
+            try:
+                variables = _freeze(coerced, [_FREEZE_BUDGET])
+            except _Unfreezable:
+                return {}
+        else:
+            variables = None
         key = (
             id(self.operation),
             type(self),
@@ -804,7 +808,10 @@ class FieldPlanExecutionContext(StrawberryGraphQLCoreExecutionContext):
 
         resolver = field.base_resolver
         if (
-            parent_type in self._root_types
+            (
+                parent_type in self._root_types
+                and (field_def.args or parent_type is not self.schema.query_type)
+            )
             or self._info_class is not Info
             or _code_of(field_def.resolve) not in _RESOLVER_WRAPPER_CODES
             or type(resolver).__call__ is not StrawberryResolver.__call__
